@@ -3,119 +3,53 @@ from __future__ import division
 import tensorflow as tf
 import numpy as np
 from utils import *
-from sklearn.externals.joblib import Memory
-from sklearn.model_selection import train_test_split
-from sklearn.datasets import load_svmlight_file
-from sklearn import metrics
 
-############# define input options ################
-flags = tf.flags
+from tensorflow.examples.tutorials.mnist import input_data
+mnist = input_data.read_data_sets('MNIST_data', one_hot=False)
+"""
+# Process MNIST
+"""
+p=0.7
+# training set
+mnist_train = mnist.train.images
+# kappa: (upper bound) norm of training feature vector
+kappa_train = np.linalg.norm(mnist_train)
+# testing set
+mnist_test  = mnist.test.images
+# kappa: (upper bound) norm of testing feature vector
+kappa_test = np.linalg.norm(mnist_test)
 
-flags.DEFINE_string(
-    "dataset", None,
-    "Choose one of the datasets: (1) phishing, (2) real-sim, (3) skin_nonskin, (4) SUSY, (5) epsilon_normalized, (6) covtype.libsvm.binary.scale, (7) ijcnn1, (8) HIGGS, (9) diabetes_scale, (10) heart_scale, (11) rcv1_train.binary")
-flags.DEFINE_string("output_file", None,
-                    "Where the training/test experiment data is stored.")
-flags.DEFINE_float("request_ratio", 0.7, "Positive / Negative data ratio. Default value 0.7")
-flags.DEFINE_integer("batch_size", 32, "batch_size (default = 32).")
-flags.DEFINE_integer("num_time_steps", 50000, "number of time steps for the AUC optimization")
-flags.DEFINE_integer("num_epochs", 25, "number of times to repeat the same experiment")
-FLAGS = flags.FLAGS
-
-
-###################################################
-
-#print 'process dataset covtype.libsvm.binary.scale/HIGGS/skin_nonskin/SUSY/real-sim /ijcnn1/phishing'
-
-
-mem = Memory("./mycache")
-@mem.cache
-def get_data():
-        data = load_svmlight_file('./data/'+FLAGS.dataset)
-        return data[0], data[1]
-
-
-print 'load data'
-X,y = get_data()
-X = X.todense()
-data_num, feat_num = np.shape(X)
-# compute (+/-) ratio of dataset:
-data_ratio=0
-for i in range(data_num):
-    if y[i]==1:
-       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
+# partition training set into +/- groups: ratio=(8:2)
+mnist_train_bin_labels=[]
+mnist_train_single_labels=[]
+for i in range(np.shape(mnist.train.labels)[0]):
+    if mnist.train.labels[i]>2:
+        mnist_train_bin_labels.append([1,0])
+        mnist_train_single_labels.append(1)
     else:
-       y[i]=0
-       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
-print 'data_ratio=',data_ratio
+        mnist_train_bin_labels.append([0,1])
+        mnist_train_single_labels.append(0)
+# as np array
+new_idx = np.random.permutation(mnist.train.labels.shape[0])
+mnist_train = mnist_train[new_idx]
+mnist_train_bin_labels=np.asarray(mnist_train_bin_labels)[new_idx]
+mnist_train_single_labels=np.asarray(mnist_train_single_labels)[new_idx]
 
-print 'relabel y=1/0 & reset (+/-) ratio:'
-X_new=[]
-y_new=[]
-pos_count=0
-neg_count=0
-C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
-if FLAGS.request_ratio > data_ratio:
-    for i in range(data_num):
-        if y[i]==1:
-            pos_count += 1
-            y_new.append(1)
-            X_new.append(X[i])
-        elif neg_count % np.ceil(C)==0:
-            neg_count += 1
-            y_new.append(0)
-            X_new.append(X[i])
-        else:
-            neg_count +=1
-else:
-    for i in range(data_num):
-        if y[i]!=1:
-            neg_count += 1
-            y_new.append(0)
-            X_new.append(X[i])
-        elif pos_count % np.ceil(1/C)==0:
-            pos_count += 1
-            y_new.append(1)
-            X_new.append(X[i])
-        else:
-            pos_count +=1
+# partition testing set into +/- groups: ratio=(8:2)
+mnist_test_bin_labels=[] 
+mnist_test_single_labels=[]
+for i in range(np.shape(mnist.test.labels)[0]):
+    if mnist.test.labels[i]>2:
+        mnist_test_bin_labels.append([1,0])
+        mnist_test_single_labels.append(1)
+    else:
+        mnist_test_bin_labels.append([0,1])
+        mnist_test_single_labels.append(0)
+# as np array
+mnist_test_bin_labels=np.asarray(mnist_test_bin_labels)
+mnist_test_single_labels=np.asarray(mnist_test_single_labels)
 
-X_new=np.squeeze(np.array(X_new))
-print 'X_new.shape', X_new.shape
-y_new=np.array(y_new)
-print 'y_new.shape', y_new.shape
-feat_num=np.shape(X_new)[1]
-X_new_mean=np.mean(X_new,axis=0)
-new_data_num=np.shape(X_new)[0]
-"""
-X_mean=np.mean(X,axis=0)
-# mean 0
-X = X - np.stack([X_mean for _ in range(data_num)])
-# norm 1
-for i in range(data_num):
-    X[i,:]=X[i,:]/np.linalg.norm(X[i,:])
-p=np.mean(y)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-"""
-X_new_mean=np.mean(X_new,axis=0)
-# mean 0
-X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
-# norm 1
-for i in range(new_data_num):
-    X_new[i,:]=X_new[i,:]/np.linalg.norm(X_new[i,:])
-p=np.mean(y_new)
-X_train, X_test, y_train, y_test = train_test_split(X_new, y_new, test_size=0.2, random_state=42)
-print 'X_train shape',X_train.shape
-print 'X_test shape',X_test.shape
-new_idx = np.random.permutation(np.shape(y_train)[0])
-# shuffle training set:
-X_train = X_train[new_idx]
-y_train=np.asarray(y_train)[new_idx]
-train_num = X_train.shape[0]
-test_num = X_test.shape[0]
-#---------------------------------------------------------------------------
-W_range=1.0
-batch_size = FLAGS.batch_size
+batch_size = 32
 # ACC shallow neural net model
 class ACCModel(object):
     
@@ -124,12 +58,12 @@ class ACCModel(object):
     
     def _build_model(self):
         
-        self.X = tf.placeholder(tf.float32, [None, feat_num])
+        self.X = tf.placeholder(tf.float32, [None, 784])
         self.y_bin = tf.placeholder(tf.float32, [None, 2])
         
         with tf.variable_scope('weight'):
             #self.w 
-            self.w = tf.get_variable("w",[feat_num, 2],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,0.01))
+            self.w = tf.get_variable("w",[784, 2],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,0.01))
             logits = tf.matmul(self.X,self.w)
             self.pred=tf.nn.softmax(logits)
             self.pred_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=self.y_bin))
@@ -150,7 +84,7 @@ with graph.as_default():
     label_accuracy = tf.reduce_mean(tf.cast(correct_label_pred, tf.float32))
 
 # Params
-num_steps = 50000
+num_steps = 100000
 
 def train_and_evaluate(training_mode, graph, model, verbose=True):
     """Helper to run the model with different training modes."""
@@ -158,24 +92,20 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
     with tf.Session(graph=graph) as sess:
         tf.global_variables_initializer().run()
         
-        #global X_train, X_test, y_train, y_test       
         gen_train_batch = batch_generator(
-            [X_train, y_train], batch_size)
+            [mnist_train, mnist_train_bin_labels], batch_size)
         gen_test_batch = batch_generator(
-            [X_test, y_test], batch_size)
+            [mnist_test, mnist_test_bin_labels], batch_size)
+        # Training loop
         for i in range(num_steps):
             
             if training_mode == 'acc':
                 lr = 1e-2/np.sqrt(i+1)
-                X, y_sing = gen_train_batch.next()
- 
-                y_bin = np.zeros([y_sing.size, 2]);
-                for i in range(y_sing.size):
-                    y_bin[i, y_sing[i]] = 1
-
+                X, y_bin = gen_train_batch.next()
+                y_single = y_bin[:,1].T
                 _, W, accuracy, batch_pred_loss, pred, prob = sess.run([regular_train_op, model.w, label_accuracy, model.pred_loss, max_pred, model.pred],
-                                     feed_dict={model.X:X, model.y_bin: y_bin,learning_rate: lr})
-                if verbose and i % 2000 == 1999:
+                                     feed_dict={model.X: X, model.y_bin: y_bin,learning_rate: lr})
+                if verbose and i % 1000 == 0:
                     print '\n\nCross-Entropy Optimization, (+/-) ratio = 7:3'
                     print 'epoch',i
                     AUC=tf.contrib.metrics.streaming_auc(prob, y_bin)
@@ -190,46 +120,11 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                     print 'groundtruth', y_single.astype(int)
 
         # Compute final evaluation on test data
-        y_test_bin = np.zeros([y_test.size, 2])
-        for i in range(y_test.size):
-            y_test_bin[i, y_test[i]] = 1
+        acc = sess.run(label_accuracy,
+                            feed_dict={model.X: mnist_test, model.y_bin: mnist_test_bin_labels})
+    return acc #, train_auc, train_pre, train_rec
 
-        acc, test_prediction = sess.run([label_accuracy, model.pred],
-                            feed_dict={model.X: X_test, model.y_bin: y_test_bin})
-        test_prediction = test_prediction[:, 1].reshape([y_test.size])
-        cumulative_auc = metrics.roc_auc_score(y_test , test_prediction)
-    return acc, cumulative_auc#, train_auc, train_pre, train_rec
 
 print '\nacc only training'
 acc = train_and_evaluate('acc', graph, model)
 print 'acc training accuracy:', acc
-
-if not FLAGS.dataset:
-    raise ValueError("Must set --dataset for experiments")
-if not FLAGS.output_file:
-    raise ValueError("Must set --output_file for experiments")
-fout =open('./output/'+FLAGS.output_file,'a')
-fout.write('dataset: '+FLAGS.dataset)
-fout.write('\noutput_file: '+FLAGS.output_file)
-fout.write('\n(+/-) ratio: '+str(FLAGS.request_ratio)+':'+str(1-FLAGS.request_ratio))
-fout.write('\nACC optimization with '+str(FLAGS.num_time_steps)+ ' training steps')
-fout.close()
-print 'dataset:', FLAGS.dataset
-print 'output_file:', FLAGS.output_file
-print '(+/-) ratio:', FLAGS.request_ratio,' : ',1-FLAGS.request_ratio
-print '\nauc optimization training'
-auc_ave=0.0
-for i in range(FLAGS.num_epochs):
-    print 'epoch', i,'/',str(FLAGS.num_epochs)
-    fopen =open('./output/'+FLAGS.output_file,'a')
-    fopen.write('\nNumber of experiment '+str(i)+' / '+str(FLAGS.num_epochs)+'\n')
-    acc,auc = train_and_evaluate('auc', graph, model)
-    print 'testing data accuracy:', acc
-    fopen.write('testing data accuracy: '+str(acc)+'\n')
-    print 'testing data cumulative AUC', auc
-    fopen.write('testing data culumative AUC: '+str(auc)+'\n')
-    auc_ave= (i*auc_ave+auc)/((i+1)*1.0)
-    fopen.close()
-fopen =open('./output/'+FLAGS.output_file,'a')
-fopen.write('testing data average_culumative AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
-fopen.close()
