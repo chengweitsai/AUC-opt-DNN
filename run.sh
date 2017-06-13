@@ -13,17 +13,30 @@ a=a9a
 
 i=1
 
-for ratio in "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7"  "0.8" "0.9"
+D=./data
+O=./output
+L=./logistic
+for dir in "$D" "$O" "$L"
+do 
+   if [ ! -d "$dir" ]; then
+      mkdir $dir
+   fi
+done
+
+for ratio in "0.01" "0.02" "0.05" "0.95" "0.98" "0.99"
 do
 
-for file in  "$SUSY" #"$s" "$p" "$rcv1" "$a" "$ij" "$c" "$e" "R"
+for file in "$SUSY"# "$ij" "$e" "$s" "$H" "$a" "$c" "$p" "$rcv1"
 do
-#    if [ ! -e output/${file}_ratio_${ratio}.txt ]; then 
-#        python dataset_auc.py --dataset $file --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 50000
-#    fi
+    if [ ! -e output/${file}_ratio_${ratio}.txt ]; then 
+        python dataset_auc.py --dataset $file --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 50000
+    fi
 
-    if [ ! -e output/trad_${file}_ratio_${ratio}.txt ]; then
-        python2.7 dataset_acc.py --dataset $file --request_ratio ${ratio} --output_file trad_${file}_ratio_${ratio}.txt --batch_size 32 --num_epoch $max --num_time_steps 30000
+    echo $file
+    echo $ratio
+     
+    if [ ! -e logistic/logistic_${file}_ratio_${ratio}.txt ]; then
+        python dataset_acc.py --dataset $file --request_ratio ${ratio} --output_file logistic_${file}_ratio_${ratio}.txt --batch_size 32 --num_epoch $max --num_time_steps 30000
     fi
 
 done

@@ -15,6 +15,7 @@ bunzip2 SUSY.bz2
 #wget https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/a9a
 D=./data
 O=./output
+L=./logistic
 for dir in "$D" "$O"
 do 
    if [ ! -d "$dir" ]; then
