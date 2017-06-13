@@ -1,4 +1,4 @@
-feat_AUC.py still not good.
+At present, we have only implemented linear model experiments.
 
 to download:
 
@@ -13,3 +13,5 @@ to run single experiment on MNIST dataset:
 either type `python traditional_acc.py`
 
 or type `python AUC.py`
+
+Please notice that we use Python 2.7
