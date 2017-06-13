@@ -22,155 +22,82 @@ flags.DEFINE_integer("num_time_steps", 50000, "number of time steps for the AUC 
 flags.DEFINE_integer("num_epochs", 10, "number of times to repeat the same experiment")
 FLAGS = flags.FLAGS
 
+
 ###################################################
 
+def get_data():
+    data = load_svmlight_file('./data/'+FLAGS.dataset)
+    return data[0], data[1]
 
-# load MNIST dataset if FLAGS.dataset == "mnist"
-if FLAGS.dataset == "mnist":
-    from tensorflow.examples.tutorials.mnist import input_data
-    mnist = input_data.read_data_sets('MNIST_data', one_hot=False)
-    """
-    # Process MNIST
-    """
-    p= FLAGS.request_ratio
-    # training set
-    X_train = mnist.train.images
-    train_num, feat_num = np.shape(X_train)
-    # kappa: (upper bound) norm of training feature vector
-    X_test  = mnist.test.images
-    test_num, _ = np.shape(X_test)
 
-    # partition training set into +/- groups: ratio=(8:2)
-    y_train=[]
-    for i in range(train_num):
-        if mnist.train.labels[i]>np.ceil(10.0*(1-p)):
-            y_train.append([1,0])
-        else:
-            y_train.append([0,1])
-    # as np array
-    new_idx = np.random.permutation(train_num)
-    X_train = X_train[new_idx]
-    y_train=np.asarray(y_train)[new_idx]
+print 'load data'
+X,y = get_data()
+print 'todense'
+X = X.todense()
+data_num, feat_num = np.shape(X)
+# compute (+/-) ratio of dataset:
+data_ratio=0
+for i in range(data_num):
+    if y[i]==1:
+       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
+    else:
+       y[i]=0
+       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
+print 'data_ratio=',data_ratio
 
-    # partition testing set into +/- groups: ratio=(8:2)
-    y_test=[] 
-    for i in range(test_num):
-        if mnist.test.labels[i]>np.ceil(10.0*(1-p)):
-            y_test.append([1,0])
-        else:
-            y_test.append([0,1])
-    # as np array
-    y_test=np.asarray(y_test)
-#------------------------------------------------------------------------------------------
-# load HIGGS dataset if FLAGS.dataset == "HIGGS"
-
-elif FLAGS.dataset == "aloi":
-    def get_data():
-        data = load_svmlight_file('./data/'+FLAGS.dataset)
-        return data[0], data[1]
-    p= FLAGS.request_ratio
-    print 'load data'
-    X,y = get_data()
-    print 'todense'
-    X = X.todense()
-    data_num, feat_num = np.shape(X)
-    X_train, X_test, y_train_multi_class, y_test_multi_class = train_test_split(X, y, test_size=0.2, random_state=42)
-    # training set
-    train_num, _ = np.shape(X_train)
-    test_num, _ = np.shape(X_test)
-
-    print 'partition training set into +/- groups: ratio'
-    y_train=[]
-    for i in range(train_num):
-        if y_train_multi_class[i]>np.ceil(1000*(1-p)):
-            y_train.append([1,0])
-        else:
-            y_train.append([0,1])
-    # as np array
-    new_idx = np.random.permutation(train_num)
-    X_train = X_train[new_idx]
-    y_train=np.asarray(y_train)[new_idx]
-
-    print 'partition testing set into +/- groups: ratio'
-    y_test=[] 
-    for i in range(test_num):
-        if y_test_multi_class[i]>np.ceil(1000*(1-p)):
-            y_test.append([1,0])
-        else:
-            y_test.append([0,1])
-    # as np array
-    y_test=np.asarray(y_test)
-
-else:
-    def get_data():
-        data = load_svmlight_file('./data/'+FLAGS.dataset)
-        return data[0], data[1]
-    #print 'dataset covtype.libsvm.binary.scale/HIGGS/skin_nonskin/SUSY/real-sim /ijcnn1/phishing'
-    print 'load data'
-    X,y = get_data()
-    X = X.todense()
-    data_num, feat_num = np.shape(X)
-    # compute (+/-) ratio of dataset:
-    data_ratio=0
+print 'relabel y=1/0 & reset (+/-) ratio:'
+X_new=[]
+y_new=[]
+pos_count=0
+neg_count=0
+C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
+if FLAGS.request_ratio > data_ratio:
     for i in range(data_num):
         if y[i]==1:
-            data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
+            pos_count += 1
+            y_new.append([1,0])
+            X_new.append(X[i,:])
+        elif neg_count % np.ceil(C)==0:
+            neg_count += 1
+            y_new.append([0,1])
+            X_new.append(X[i,:])
         else:
-            y[i]=0
-            data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
-    print 'data_ratio=',data_ratio
-    print 'relabel y=1/0 & reset (+/-) ratio:'
-    X_new=[]
-    y_new=[]
-    pos_count=0
-    neg_count=0
-    C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
-    if FLAGS.request_ratio > data_ratio:
-        for i in range(data_num):
-            if y[i]==1:
-                pos_count += 1
-                y_new.append([1,0])
-                X_new.append(X[i])
-            elif neg_count % np.ceil(C)==0:
-                neg_count += 1
-                y_new.append([0,1])
-                X_new.append(X[i,:])
-            else:
-                neg_count +=1
-    else:
-        for i in range(data_num):
-            if y[i]!=1:
-                neg_count += 1
-                y_new.append([0,1])
-                X_new.append(X[i])
-            elif pos_count % np.ceil(1/C)==0:
-                pos_count += 1
-                y_new.append([1,0])
-                X_new.append(X[i,:])
-            else:
-                pos_count +=1
+            neg_count +=1
+else:
+    for i in range(data_num):
+        if y[i]!=1:
+            neg_count += 1
+            y_new.append([0,1])
+            X_new.append(X[i,:])
+        elif pos_count % np.ceil(1/C)==0:
+            pos_count += 1
+            y_new.append([1,0])
+            X_new.append(X[i,:])
+        else:
+            pos_count +=1
 
-    X_new=np.squeeze(np.array(X_new))
-    print 'X_new.shape', X_new.shape
-    y_new=np.array(y_new)
-    print 'y_new.shape', y_new.shape
-    new_data_num,feat_num = np.shape(X_new)
-    # mean 0
-    X_new_mean = np.mean(X_new,axis=0)
-    X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
-    # norm 1
-    for i in range(new_data_num):
-        X_new[i,:]=X_new[i,:]/np.linalg.norm(X_new[i,:])
-    p=np.mean(y_new)
-    X_train, X_test, y_train, y_test = train_test_split(X_new, y_new, test_size=0.2, random_state=42)
-    print 'X_train shape',X_train.shape
-    print 'X_test shape',X_test.shape
-    # shuffle training set:
-    new_idx = np.random.permutation(np.shape(y_train)[0])
-    X_train = X_train[new_idx]
-    y_train=np.asarray(y_train)[new_idx]
-    train_num = X_train.shape[0]
-    test_num = X_test.shape[0]
+X_new=np.squeeze(np.array(X_new))
+print 'X_new.shape', X_new.shape
+y_new=np.array(y_new)
+print 'y_new.shape', y_new.shape
+new_data_num,feat_num = np.shape(X_new)
+# mean 0
+X_new_mean = np.mean(X_new,axis=0)
+X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
+# norm 1
+for i in range(new_data_num):
+    X_new[i,:]=X_new[i,:]/np.linalg.norm(X_new[i,:])
+p=np.mean(y_new)
+X_train, X_test, y_train, y_test = train_test_split(X_new, y_new, test_size=0.2, random_state=42)
+print 'X_train shape',X_train.shape
+print 'X_test shape',X_test.shape
+# shuffle training set:
+new_idx = np.random.permutation(np.shape(y_train)[0])
+X_train = X_train[new_idx]
+y_train=np.asarray(y_train)[new_idx]
+train_num = X_train.shape[0]
+test_num = X_test.shape[0]
+
 #---------------------------------------------------------------------------
 batch_size = FLAGS.batch_size
 # ACC shallow neural net model
