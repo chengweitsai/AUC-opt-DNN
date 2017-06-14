@@ -29,14 +29,14 @@ do
 for file in "$SUSY"# "$ij" "$e" "$s" "$H" "$a" "$c" "$p" "$rcv1"
 do
     if [ ! -e output/${file}_ratio_${ratio}.txt ]; then 
-        python dataset_auc.py --dataset $file --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 50000
+        python dataset_auc.py --dataset $file --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 20000
     fi
 
     echo $file
     echo $ratio
      
     if [ ! -e logistic/logistic_${file}_ratio_${ratio}.txt ]; then
-        python dataset_acc.py --dataset $file --request_ratio ${ratio} --output_file logistic_${file}_ratio_${ratio}.txt --batch_size 32 --num_epoch $max --num_time_steps 30000
+        python dataset_acc.py --dataset $file --request_ratio ${ratio} --output_file logistic_${file}_ratio_${ratio}.txt --batch_size 32
     fi
 
 done
