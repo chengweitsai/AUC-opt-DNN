@@ -19,8 +19,6 @@ flags.DEFINE_string("output_file", None,
                     "Where the training/test experiment data is stored.")
 flags.DEFINE_float("request_ratio", 0.7, "Positive / Negative data ratio. Default value 0.7")
 flags.DEFINE_integer("batch_size", 32, "batch_size (default = 32).")
-flags.DEFINE_integer("num_time_steps", 50000, "number of time steps for the AUC optimization")
-flags.DEFINE_integer("num_epochs", 10, "number of times to repeat the same experiment")
 FLAGS = flags.FLAGS
 
 
@@ -119,8 +117,8 @@ print '(+/-) ratio:', FLAGS.request_ratio,' : ',1-FLAGS.request_ratio
 print '\nacc optimization training'
 acc_ave,auc_ave = train_and_evaluate()
 fopen =open('./logistic/'+FLAGS.output_file,'a')
-fopen.write('testing data average ACC over '+str(FLAGS.num_epochs)+' epochs: '+str(acc_ave)+'\n')
-fopen.write('testing data average AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
+fopen.write('testing data ACC: '+str(acc_ave)+'\n')
+fopen.write('testing data AUC: '+str(auc_ave)+'\n')
 fopen.close()
-print 'testing data average ACC over '+str(FLAGS.num_epochs)+' epochs: '+str(acc_ave)
-print 'testing data average AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)
+print 'testing data ACC: '+str(acc_ave)
+print 'testing data AUC: '+str(auc_ave)

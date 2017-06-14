@@ -18,21 +18,17 @@ flags.DEFINE_string("output_file", None,
                     "Where the training/test experiment data is stored.")
 flags.DEFINE_float("request_ratio", 0.7, "Positive / Negative data ratio. Default value 0.7")
 flags.DEFINE_integer("batch_size", 32, "batch_size (default = 32).")
-flags.DEFINE_integer("num_time_steps", 50000, "number of time steps for the AUC optimization")
-flags.DEFINE_integer("num_epochs", 25, "number of times to repeat the same experiment")
+flags.DEFINE_integer("num_time_steps", 20000, "number of time steps for the AUC optimization")
+flags.DEFINE_integer("num_epochs", 10, "number of times to repeat the same experiment")
 FLAGS = flags.FLAGS
 
 
 ###################################################
 
-#print 'process dataset covtype.libsvm.binary.scale/HIGGS/skin_nonskin/SUSY/real-sim /ijcnn1/phishing'
-
-
-#mem = Memory("./mycache")
-#@mem.cache
 def get_data():
         data = load_svmlight_file('./data/'+FLAGS.dataset)
         return data[0], data[1]
+
 
 print 'load data'
 X,y = get_data()
@@ -49,30 +45,55 @@ for i in range(data_num):
 print 'data_ratio=',data_ratio
 
 print 'relabel y=1/0 & reset (+/-) ratio:'
-X_new=np.array([]).reshape(-1, X.shape[1])
-y_new=np.array([])
-X_pos = X[y==1].reshape(-1, X.shape[1])
-X_neg = X[y==0].reshape(-1, X.shape[1])
-
+X_new=[]
+y_new=[]
+pos_count=0
+neg_count=0
 C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
 if FLAGS.request_ratio > data_ratio:
-    X_new = np.r_[X_new, X_pos]
-    y_new = np.r_[y_new, np.ones(X_pos.shape[0])]
-    neg_idx = np.arange(0, X_neg.shape[0], np.ceil(C)).astype(np.int32)
-    X_new = np.r_[X_new, X_neg[neg_idx].reshape(-1, X.shape[1])]
-    y_new = np.r_[y_new, np.zeros(neg_idx.size)]
+    for i in range(data_num):
+        if y[i]==1:
+            pos_count += 1
+            y_new.append(1)
+            X_new.append(X[i])
+        elif neg_count % np.ceil(C)==0:
+            neg_count += 1
+            y_new.append(0)
+            X_new.append(X[i])
+        else:
+            neg_count +=1
 else:
-    X_new = np.r_[X_new, X_neg]
-    y_new = np.r_[y_new, np.zeros(X_neg.shape[0])]
-    pos_idx = np.arange(0, X_pos.shape[0], np.ceil(C)).astype(np.int32)
-    X_new = np.r_[X_new, X_pos[pos_idx].reshape(-1, X.shape[1])]
-    y_new = np.r_[y_new, np.ones(pos_idx.size)]
+    for i in range(data_num):
+        if y[i]!=1:
+            neg_count += 1
+            y_new.append(0)
+            X_new.append(X[i])
+        elif pos_count % np.ceil(1/C)==0:
+            pos_count += 1
+            y_new.append(1)
+            X_new.append(X[i])
+        else:
+            pos_count +=1
 
+X_new=np.squeeze(np.array(X_new))
 print 'X_new.shape', X_new.shape
+y_new=np.array(y_new)
 print 'y_new.shape', y_new.shape
-new_data_num, feat_num = np.shape(X_new)
-# mean 0
+feat_num=np.shape(X_new)[1]
 X_new_mean=np.mean(X_new,axis=0)
+new_data_num=np.shape(X_new)[0]
+"""
+X_mean=np.mean(X,axis=0)
+# mean 0
+X = X - np.stack([X_mean for _ in range(data_num)])
+# norm 1
+for i in range(data_num):
+    X[i,:]=X[i,:]/np.linalg.norm(X[i,:])
+p=np.mean(y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+"""
+X_new_mean=np.mean(X_new,axis=0)
+# mean 0
 X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
 # norm 1
 for i in range(new_data_num):
@@ -146,6 +167,10 @@ with graph.as_default():
     t_vars = tf.trainable_variables()
     # compute the gradients of a list of vars: w,a,b
     grads_and_vars_min = min_train_op.compute_gradients(model.loss,[v for v in t_vars if(v.name =='weight/w:0' or v.name =='network/a:0' or v.name == 'network/b:0')])
+    # grads_and_vars is a list of tuples (grad,var)
+    #grads_min, vars_min = zip(*grads_and_vars_min)
+    #clipped_grads_and_vars_min = [(tf.clip_by_norm(grad_min,clip_norm=500),var_min) for (grad_min,var_min) in grads_and_vars_min]
+    #min_op = min_train_op.apply_gradients(clipped_grads_and_vars_min)
     min_op = min_train_op.apply_gradients(grads_and_vars_min)
     
     clip_a_op=tf.assign(model.a,tf.clip_by_value(model.a, clip_value_min=-W_range, clip_value_max=W_range))
@@ -154,6 +179,10 @@ with graph.as_default():
     # stochastic ascent
     # compute the gradients of a list of vars: alpha
     grads_and_vars_max=max_train_op.compute_gradients(tf.negative(model.loss),[v for v in t_vars if v.name=='network/alpha:0'])
+    # grads_and_vars is a list of tuples (grad,var)
+    #grads_max, vars_max = zip(*grads_and_vars_max)
+    #clipped_grads_and_vars_max = [(tf.clip_by_norm(grad_max,clip_norm=500),var_max) for (grad_max,var_max) in grads_and_vars_max]
+    #max_op = min_train_op.apply_gradients(clipped_grads_and_vars_max)
     max_op = min_train_op.apply_gradients(grads_and_vars_max)
                 
     clip_alpha_op=tf.assign(model.alpha,tf.clip_by_value(model.alpha, clip_value_min=-2*W_range, clip_value_max=2*W_range))
@@ -166,7 +195,7 @@ with graph.as_default():
     label_accuracy = tf.reduce_mean(tf.cast(correct_label_pred, tf.float64))
 
 # Params
-num_steps = 50000
+num_steps = FLAGS.num_time_steps
 
 def train_and_evaluate(training_mode, graph, model, verbose=True):
     """Helper to run the model with different training modes."""
@@ -197,6 +226,8 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                                feed_dict={model.X: X, model.y_sing: y_sing, learning_rate: lr,weighted_coeff: wc})
                 prediction_list.extend(prediction.reshape([batch_size]))
                 label_list.extend(y_sing)
+                #print(np.array(label_list).shape)
+                #print(np.array(prediction_list).shape)
                 if verbose and i % 2000 == 1999:
                     print '\n\nAUC optimization training, (+/-) ratio %f', p,1-p
                     print 'epoch',i,'/',num_steps
@@ -208,12 +239,21 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                     print 'batch_total_loss',batch_total_loss
                     print 'learning_rate',lr
                     print 'fraction',frac
+                    #print 'W',W.T
+                    #print 'gmin length',len(gmin)
+                    #print 'gmin[0].shape',gmin[0].shape
+                    #print 'gradient_w',gmin[0]
+                    #print 'gmin[1].shape',gmin[1].shape
                     print 'gradient_a',gmin[1]
+                    #print 'gmin[2].shape',gmin[2].shape
                     print 'gradient_b',gmin[2]
+                    #print 'gvmax length',len(gvmax)
+                    #print 'gmax[0].shape',gmax[0].shape
                     print 'gradient_alpha',gmax[0]
                     print 'A',A
                     print 'B',B
                     print 'Alpha',Alpha
+                    #print('weighted_coeff',weight)
                     print 'train_auc',train_AUC
                     print 'train_acc',accuracy
                     #cumulative_AUC = metrics.roc_auc_score(np.array(label_list),np.array(prediction_list))
@@ -244,6 +284,7 @@ print 'dataset:', FLAGS.dataset
 print 'output_file:', FLAGS.output_file
 print '(+/-) ratio:', FLAGS.request_ratio,' : ',1-FLAGS.request_ratio
 print '\nauc optimization training'
+acc_ave=0.0
 auc_ave=0.0
 for i in range(FLAGS.num_epochs):
     print 'epoch', i,'/',str(FLAGS.num_epochs)
@@ -255,7 +296,9 @@ for i in range(FLAGS.num_epochs):
     print 'testing data cumulative AUC', auc
     fopen.write('testing data culumative AUC: '+str(auc)+'\n')
     auc_ave= (i*auc_ave+auc)/((i+1)*1.0)
+    acc_ave= (i*acc_ave+acc)/((i+1)*1.0)
     fopen.close()
 fopen =open('./output/'+FLAGS.output_file,'a')
-fopen.write('testing data average_culumative AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
+fopen.write('testing data average ACC over '+str(FLAGS.num_epochs)+' epochs: '+str(acc_ave)+'\n')
+fopen.write('testing data average AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
 fopen.close()
