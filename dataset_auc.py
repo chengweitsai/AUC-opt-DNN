@@ -29,9 +29,9 @@ def get_data():
         data = load_svmlight_file('./data/'+FLAGS.dataset)
         return data[0], data[1]
 
-
 print 'load data'
 X,y = get_data()
+print 'todense'
 X = X.todense()
 data_num, feat_num = np.shape(X)
 # compute (+/-) ratio of dataset:
@@ -45,45 +45,30 @@ for i in range(data_num):
 print 'data_ratio=',data_ratio
 
 print 'relabel y=1/0 & reset (+/-) ratio:'
-X_new=[]
-y_new=[]
-pos_count=0
-neg_count=0
+X_new=np.array([]).reshape(-1, X.shape[1])
+y_new=np.array([])
+X_pos = X[y==1].reshape(-1, X.shape[1])
+X_neg = X[y==0].reshape(-1, X.shape[1])
+
 C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
 if FLAGS.request_ratio > data_ratio:
-    for i in range(data_num):
-        if y[i]==1:
-            pos_count += 1
-            y_new.append(1)
-            X_new.append(X[i])
-        elif neg_count % np.ceil(C)==0:
-            neg_count += 1
-            y_new.append(0)
-            X_new.append(X[i])
-        else:
-            neg_count +=1
+    X_new = np.r_[X_new, X_pos]
+    y_new = np.r_[y_new, np.ones(X_pos.shape[0])]
+    neg_idx = np.arange(0, X_neg.shape[0], np.ceil(C)).astype(np.int32)
+    X_new = np.r_[X_new, X_neg[neg_idx].reshape(-1, X.shape[1])]
+    y_new = np.r_[y_new, np.zeros(neg_idx.size)]
 else:
-    for i in range(data_num):
-        if y[i]!=1:
-            neg_count += 1
-            y_new.append(0)
-            X_new.append(X[i])
-        elif pos_count % np.ceil(1/C)==0:
-            pos_count += 1
-            y_new.append(1)
-            X_new.append(X[i])
-        else:
-            pos_count +=1
+    X_new = np.r_[X_new, X_neg]
+    y_new = np.r_[y_new, np.zeros(X_neg.shape[0])]
+    pos_idx = np.arange(0, X_pos.shape[0], np.ceil(C)).astype(np.int32)
+    X_new = np.r_[X_new, X_pos[pos_idx].reshape(-1, X.shape[1])]
+    y_new = np.r_[y_new, np.ones(pos_idx.size)]
 
-X_new=np.squeeze(np.array(X_new))
 print 'X_new.shape', X_new.shape
-y_new=np.array(y_new)
 print 'y_new.shape', y_new.shape
-feat_num=np.shape(X_new)[1]
-X_new_mean=np.mean(X_new,axis=0)
-new_data_num=np.shape(X_new)[0]
-X_new_mean=np.mean(X_new,axis=0)
+new_data_num,feat_num = np.shape(X_new)
 # mean 0
+X_new_mean=np.mean(X_new,axis=0)
 X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
 # norm 1
 for i in range(new_data_num):

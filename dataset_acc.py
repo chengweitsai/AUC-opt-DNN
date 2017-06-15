@@ -28,7 +28,6 @@ def get_data():
     data = load_svmlight_file('./data/'+FLAGS.dataset)
     return data[0], data[1]
 
-
 print 'load data'
 X,y = get_data()
 print 'todense'
