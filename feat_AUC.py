@@ -72,21 +72,21 @@ class AUCModel(object):
             #CNN layers:
             self.W_conv0 = tf.get_variable("W_conv0",[5,5,1,32],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
             self.b_conv0 = tf.get_variable("b_conv0",[32],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
-            self.h_conv0 = conv2d(self.X, self.W_conv0, 1) + self.b_conv0
+            self.h_conv0 = conv2d_stride(self.X, self.W_conv0, 1) + self.b_conv0
             self.bn_conv0 = tf.contrib.layers.batch_norm(self.h_conv0, 
                                                          center=True, scale=True, 
                                                          scope='bn0')
 
             self.W_conv1 = tf.get_variable("W_conv1",[5,5,32,256],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
             self.b_conv1 = tf.get_variable("b_conv1",[256],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
-            self.h_conv1 = conv2d(self.bn_conv0, self.W_conv1, 1) + self.b_conv1
+            self.h_conv1 = conv2d_stride(self.bn_conv0, self.W_conv1, 1) + self.b_conv1
             self.bn_conv1 = tf.contrib.layers.batch_norm(self.h_conv1, 
                                                          center=True, scale=True,
                                                          scope='bn1')
              
             self.W_conv2 = tf.get_variable("W_conv2",[3,3,256,1024],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
             self.b_conv2 = tf.get_variable("b_conv2",[1024],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1.0))
-            self.h_conv2 = conv2d(self.bn_conv1, self.W_conv2, 2) + self.b_conv2
+            self.h_conv2 = conv2d_stride(self.bn_conv1, self.W_conv2, 2) + self.b_conv2
             print('h_conv2.shape',self.h_conv2.shape)
             self.bn_conv2 = tf.contrib.layers.batch_norm(self.h_conv2, 
                                                          center=True, scale=True, 
