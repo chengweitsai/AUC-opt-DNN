@@ -142,9 +142,11 @@ with graph.as_default():
     
     learning_rate = tf.placeholder(tf.float32, [])
     
-    assign_a_op = tf.assign(model.a, tf.reshape( tf.reduce_mean( tf.multiply( model.inner_prod,  model.y_sing ) ), [1] ) )
-    assign_b_op = tf.assign(model.b, tf.reshape( tf.reduce_mean( tf.multiply( model.inner_prod, 1 - model.y_sing ) ), [1] ) )
-    assign_alpha_op = tf.assign(model.alpha, tf.reshape( tf.reduce_mean( tf.multiply(model.inner_prod, 1 - 2 * model.y_sing ) ), [1] ) )
+    pos_mean = ( 1 / p ) * tf.reduce_mean( tf.multiply( model.inner_prod,  model.y_sing ) )
+    neg_mean = ( 1 / ( 1 - p ) ) * tf.reduce_mean( tf.multiply( model.inner_prod, 1 - model.y_sing ) )
+    assign_a_op = tf.assign(model.a, tf.reshape( pos_mean, [1] ) )
+    assign_b_op = tf.assign(model.b, tf.reshape( neg_mean, [1] ) )
+    assign_alpha_op = tf.assign(model.alpha, tf.reshape( neg_mean - pos_mean, [1] ) )
 
     t_vars = tf.trainable_variables()
     feat_train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
@@ -220,7 +222,7 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                             feed_dict={model.X: mnist_TEST, model.y_sing: mnist_TEST_single})
         test_prediction = prediction_T.reshape([TEST_num])
         cumulative_auc = metrics.roc_auc_score(mnist_TEST_single, test_prediction)
-    return acc_TEST ,cumulative_auc
+    return acc_TEST ,cumulative_auc  #, train_auc, train_pre, train_rec
 if not FLAGS.output_file:
     raise ValueError("Must set --output_file for experiments")
 fout =open('./output/'+FLAGS.output_file,'a')
@@ -252,3 +254,6 @@ fopen.write('testing data average ACC over '+str(FLAGS.num_epochs)+' epochs: '+s
 fopen.write('testing data average AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
 fopen.close()
 
+print '\nauc optimization training'
+train_and_evaluate('auc', graph, model)
+#print 'auc training accuracy:', acc
