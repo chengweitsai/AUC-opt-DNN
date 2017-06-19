@@ -7,7 +7,7 @@ import math
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets('MNIST_data', one_hot=False)
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 from sklearn.externals.joblib import Memory
 from sklearn.model_selection import train_test_split
@@ -220,7 +220,7 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                             feed_dict={model.X: mnist_TEST, model.y_sing: mnist_TEST_single})
         test_prediction = prediction_T.reshape([TEST_num])
         cumulative_auc = metrics.roc_auc_score(mnist_TEST_single, test_prediction)
-    return acc_TEST ,cumulative_auc  #, train_auc, train_pre, train_rec
+    return acc_TEST ,cumulative_auc
 if not FLAGS.output_file:
     raise ValueError("Must set --output_file for experiments")
 fout =open('./output/'+FLAGS.output_file,'a')
@@ -252,6 +252,3 @@ fopen.write('testing data average ACC over '+str(FLAGS.num_epochs)+' epochs: '+s
 fopen.write('testing data average AUC over '+str(FLAGS.num_epochs)+' epochs: '+str(auc_ave)+'\n')
 fopen.close()
 
-print '\nauc optimization training'
-train_and_evaluate('auc', graph, model)
-#print 'auc training accuracy:', acc

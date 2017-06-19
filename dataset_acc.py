@@ -108,7 +108,6 @@ fout =open('./output/'+FLAGS.output_file,'a')
 fout.write('dataset: '+FLAGS.dataset)
 fout.write('\noutput_file: '+FLAGS.output_file)
 fout.write('\n(+/-) ratio: '+str(FLAGS.request_ratio)+':'+str(1-FLAGS.request_ratio))
-fout.write('\nACC optimization with '+str(FLAGS.num_time_steps)+ ' training steps')
 fout.close()
 print 'dataset:', FLAGS.dataset
 print 'output_file:', FLAGS.output_file
