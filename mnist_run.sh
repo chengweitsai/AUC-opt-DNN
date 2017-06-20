@@ -10,7 +10,7 @@ do
 for file in "$M"
 do
     if [ ! -e output/${file}_ratio_${ratio}.txt ]; then 
-        python2.7 new_feat_AUC.py  --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 20000
+        python2.7 feat_AUC.py  --request_ratio ${ratio} --output_file ${file}_ratio_${ratio}.txt --batch_size 32 --num_epochs $max --num_time_steps 20000
     fi
 
     echo $file
