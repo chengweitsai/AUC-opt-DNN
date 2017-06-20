@@ -1,9 +1,14 @@
 1. For linear model experiments:
 
     To download:
-    ```sh download.sh```
+    ```
+    sh download.sh
+    ```
 
-    To run: (do experiment on different datasets)    `sh run.sh`
+    To run: (do experiment on different datasets)
+    ```
+    sh run.sh
+    ```
 
     To run single experiment on MNIST dataset:
     
