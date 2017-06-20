@@ -2,7 +2,7 @@
 
     To download:
 
-        type `sh download.sh`
+    type `sh download.sh`
 
     To run: (do experiment on different datasets)
 
