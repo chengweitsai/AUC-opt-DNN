@@ -9,7 +9,7 @@ do
 
 for file in "$M"
 do
-    if [ ! -e new_m2_output/${file}_ratio_${ratio}.txt ]; then 
+    if [ ! -e output/new_m2_${file}_ratio_${ratio}.txt ]; then 
         python m2_feat_AUC.py  --request_ratio ${ratio} --output_file new_m2_${file}_ratio_${ratio}.txt --batch_size 32  --num_time_steps 20000 --num_epochs 3
     fi
 
