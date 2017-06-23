@@ -68,9 +68,9 @@ for i in range(np.shape(mnist.train.labels)[0]):
 # further reshuffle
 new_idx = np.random.permutation(mnist.train.labels.shape[0])
 mnist_train = mnist_train[new_idx]
-mnist_train_single_labels=np.asarray(mnist_train_single_labels)[new_idx]
+mnist_train_single_labels = np.asarray(mnist_train_single_labels)[new_idx]
 # partition testing set into +/- groups: ratio=(7:3)
-mnist_test_single_labels=[]
+mnist_test_single_labels = []
 for i in range(np.shape(mnist.test.labels)[0]):
     if mnist.test.labels[i]>np.ceil(10*(1-p))-1:
         mnist_test_single_labels.append(1)
@@ -98,7 +98,7 @@ class AUCModel(object):
             #CNN layers:
             self.W_conv0 = tf.get_variable("W_conv0",[5,5,1,4],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1e-3))
             #self.b_conv0 = tf.get_variable("b_conv0",[4],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1e-3))
-            self.h_conv0 = conv2d_stride(self.X, self.W_conv0, 2)# + self.b_conv0
+            self.h_conv0 = conv2d_stride(self.X, self.W_conv0, 2)  # + self.b_conv0
             self.h_relu0 = -tf.nn.elu(self.h_conv0)
             self.bn_conv0 = tf.contrib.layers.batch_norm(self.h_relu0, center=True, scale=True, scope='bn0')
 
@@ -106,7 +106,7 @@ class AUCModel(object):
                                            initializer=tf.random_normal_initializer(0.0, 1e-3))
 
             #self.b_conv1 = tf.get_variable("b_conv1",[16],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1e-3))
-            self.h_conv1 = conv2d_stride(self.bn_conv0, self.W_conv1, 2) #+ self.b_conv1
+            self.h_conv1 = conv2d_stride(self.bn_conv0, self.W_conv1, 2)  # + self.b_conv1
             self.h_relu1 = tf.nn.elu(self.h_conv1)
             self.bn_conv1 = tf.contrib.layers.batch_norm(self.h_relu1,
                                                          center=True, scale=True,
@@ -121,13 +121,13 @@ class AUCModel(object):
             # current copy of w
             self.w = tf.get_variable("w",[7*7*16,1],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0,1e-3))
             self.w_ave = tf.get_variable("w_ave",[7*7*16,1],dtype=tf.float32,initializer=tf.random_normal_initializer(0.0, 1e-3))
-            self.inner_prod = tf.matmul(self.feature,self.w)
+            self.inner_prod = tf.matmul(self.feature, self.w)
             #self.pred = 0.5*tf.sign(self.inner_prod)+0.5
         with tf.variable_scope('network'):
             # current copies of (a,b)
             self.a = tf.Variable(tf.zeros([1], dtype=tf.float32), name='a')
             self.b = tf.Variable(tf.zeros([1], dtype=tf.float32), name='b')
-            self.alpha = tf.Variable(tf.zeros([1],dtype=tf.float32),name='alpha')
+            self.alpha = tf.Variable(tf.zeros([1], dtype=tf.float32), name='alpha')
             # average versions of (a,b)
             self.a_ave = tf.Variable(tf.zeros([1], dtype=tf.float32), name='a_ave')
             self.b_ave = tf.Variable(tf.zeros([1], dtype=tf.float32), name='b_ave')
@@ -135,7 +135,7 @@ class AUCModel(object):
 
             self.loss1 = (1 - p) * tf.multiply(tf.square(self.inner_prod - tf.tile(self.a, [batch_size])), self.y_sing)
             self.loss2 = p * tf.multiply(tf.square(self.inner_prod - tf.tile(self.b, [batch_size])), 1 - self.y_sing)
-            self.loss3 = 2 * (1 + self.alpha) * (p*tf.multiply(self.inner_prod, (1 - self.y_sing)) - (1-p) * tf.multiply(self.inner_prod, self.y_sing)) - p * (1-p) * tf.square(self.alpha)
+            self.loss3 = 2 * (1 + self.alpha) * (p*tf.multiply(self.inner_prod, (1 - self.y_sing)) - (1 - p) * tf.multiply(self.inner_prod, self.y_sing)) - p * (1 - p) * tf.square(self.alpha)
             self.loss = tf.reduce_mean(self.loss1 + self.loss2 + self.loss3 + tf.nn.l2_loss(self.inner_prod))
 
 
@@ -165,8 +165,8 @@ with graph.as_default():
 #  Optimize (a,b):
     # define min optimizer
     min_train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-       # stochastic descent
-       # compute the gradients of a list of vars: a,b
+    # stochastic descent
+    # compute the gradients of a list of vars: a,b
     grads_and_vars_min = min_train_op.compute_gradients(model.loss,[v for v in t_vars if(v.name == 'network/a:0' or v.name == 'network/b:0')])
     min_op = min_train_op.apply_gradients(grads_and_vars_min)
        # clip a and b
@@ -189,7 +189,7 @@ with graph.as_default():
     #  define weight optimizer
     w_train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
     #  weight optimization:
-    grads_and_vars_w = w_train_op.compute_gradients(model.loss,[v for v in t_vars if(v.name == 'weight/w:0')])
+    grads_and_vars_w = w_train_op.compute_gradients(model.loss, [v for v in t_vars if(v.name == 'weight/w:0')])
     w_op = min_train_op.apply_gradients(grads_and_vars_w)
     #  clip w
     clip_w_op = tf.assign(model.w,tf.clip_by_norm(model.w, clip_norm=W_range, axes=[0]))
@@ -223,6 +223,7 @@ with graph.as_default():
 
 # Params
 num_steps = FLAGS.num_time_steps
+
 
 def train_and_evaluate(training_mode, graph, model, verbose=True):
     """Helper to run the model with different training modes."""

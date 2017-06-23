@@ -88,6 +88,8 @@ test_num = X_test.shape[0]
 # ---------------------------------------------------------------------------
 W_range = 1.0
 batch_size = FLAGS.batch_size
+
+
 # AUC neural net model
 class AUCModel(object):
     global p
@@ -139,7 +141,7 @@ with graph.as_default():
 
     learning_rate = tf.placeholder(tf.float64, [])
     weighted_coeff = tf.placeholder(tf.float64, [])
-    fraction = tf.divide(learning_rate,weighted_coeff)
+    fraction = tf.divide(learning_rate, weighted_coeff)
 
     # assign new weighted-averages of (w,a,b,alpha)
     save_w_op = tf.assign(model.w_ave, (1-fraction)*model.w_ave+fraction*model.w)
@@ -148,36 +150,37 @@ with graph.as_default():
     save_alpha_op = tf.assign(model.alpha_ave, (1-fraction)*model.alpha_ave+fraction*model.alpha)
 
     # define min optimizer
-    min_train_op = tf.train.GradientDescentOptimizer(learning_rate = learning_rate)
+    min_train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
 
     # define max optimizer
-    max_train_op = tf.train.GradientDescentOptimizer(learning_rate = learning_rate)
+    max_train_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
 
     # stochastic descent
     t_vars = tf.trainable_variables()
     # compute the gradients of a list of vars: w,a,b
-    grads_and_vars_min = min_train_op.compute_gradients(model.loss,[v for v in t_vars if(v.name =='weight/w:0' or v.name =='network/a:0' or v.name == 'network/b:0')])
+    grads_and_vars_min = min_train_op.compute_gradients(model.loss, [v for v in t_vars if(v.name == 'weight/w:0' or v.name == 'network/a:0' or v.name == 'network/b:0')])
     min_op = min_train_op.apply_gradients(grads_and_vars_min)
 
-    clip_a_op=tf.assign(model.a,tf.clip_by_value(model.a, clip_value_min=-W_range, clip_value_max=W_range))
-    clip_b_op=tf.assign(model.b,tf.clip_by_value(model.b, clip_value_min=-W_range, clip_value_max=W_range))
-    clip_w_op=tf.assign(model.w,tf.clip_by_norm(model.w, clip_norm = W_range,axes=[0]))
+    clip_a_op = tf.assign(model.a, tf.clip_by_value(model.a, clip_value_min=-W_range, clip_value_max=W_range))
+    clip_b_op = tf.assign(model.b, tf.clip_by_value(model.b, clip_value_min=-W_range, clip_value_max=W_range))
+    clip_w_op = tf.assign(model.w, tf.clip_by_norm(model.w, clip_norm=W_range, axes=[0]))
     # stochastic ascent
     # compute the gradients of a list of vars: alpha
-    grads_and_vars_max=max_train_op.compute_gradients(tf.negative(model.loss),[v for v in t_vars if v.name=='network/alpha:0'])
+    grads_and_vars_max = max_train_op.compute_gradients(tf.negative(model.loss), [v for v in t_vars if v.name == 'network/alpha:0'])
     max_op = min_train_op.apply_gradients(grads_and_vars_max)
 
-    clip_alpha_op=tf.assign(model.alpha,tf.clip_by_value(model.alpha, clip_value_min=-2*W_range, clip_value_max=2*W_range))
-
+    clip_alpha_op = tf.assign(model.alpha,
+                            tf.clip_by_value(model.alpha, clip_value_min=-2*W_range, clip_value_max=2*W_range))
 
     train_op = tf.group(max_op, clip_alpha_op, min_op, clip_a_op, clip_b_op, clip_w_op,
                         save_w_op, save_a_op, save_b_op, save_alpha_op)
     # Evaluation
-    correct_label_pred = tf.equal(tf.cast(model.y_sing,tf.int64), tf.cast(tf.transpose(model.pred),tf.int64))
+    correct_label_pred = tf.equal(tf.cast(model.y_sing,tf.int64), tf.cast(tf.transpose(model.pred), tf.int64))
     label_accuracy = tf.reduce_mean(tf.cast(correct_label_pred, tf.float64))
 
 # Params
 num_steps = FLAGS.num_time_steps
+
 
 def train_and_evaluate(training_mode, graph, model, verbose=True):
     """Helper to run the model with different training modes."""
@@ -200,14 +203,20 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                 # lr = 0
                 X, y_sing = gen_train_batch.next()
                 # fetch loss
-                accuracy, batch_total_loss, prediction, frac, W, A, B, Alpha, inner_product, gvmin, gvmax, correct, _ = \
-                               sess.run([label_accuracy, model.loss, model.pred, fraction, model.w, model.a, model.b, model.alpha, \
-                                         model.inner_prod_ave, grads_and_vars_min, grads_and_vars_max, correct_label_pred, train_op], \
-                               feed_dict={model.X: X, model.y_sing: y_sing, learning_rate: lr,weighted_coeff: wc})
+                accuracy, batch_total_loss, prediction, frac, W, A, B, Alpha, inner_product, gvmin, gvmax, correct, _ = sess.run(
+                    [label_accuracy, model.loss, model.pred, fraction, model.w, model.a, model.b, model.alpha,
+                    model.inner_prod_ave, grads_and_vars_min, grads_and_vars_max, correct_label_pred, train_op],
+                    feed_dict={
+                        model.X: X,
+                        model.y_sing: y_sing,
+                        learning_rate: lr,
+                        weighted_coeff: wc
+                    }
+                )
                 prediction_list.extend(prediction.reshape([batch_size]))
                 label_list.extend(y_sing)
-                #print(np.array(label_list).shape)
-                #print(np.array(prediction_list).shape)
+                # print(np.array(label_list).shape)
+                # print(np.array(prediction_list).shape)
                 if verbose and i % 2000 == 1999:
                     print '\n\nAUC optimization training, (+/-) ratio %f', p, 1 - p
                     print 'epoch', i, '/', num_steps
@@ -226,11 +235,11 @@ def train_and_evaluate(training_mode, graph, model, verbose=True):
                     print 'A', A
                     print 'B', B
                     print 'Alpha', Alpha
-                    #print('weighted_coeff',weight)
+                    # print('weighted_coeff',weight)
                     print 'train_auc', train_AUC
                     print 'train_acc', accuracy
-                    #cumulative_AUC = metrics.roc_auc_score(np.array(label_list),np.array(prediction_list))
-                    #print 'cumulative AUC', cumulative_AUC
+                    # cumulative_AUC = metrics.roc_auc_score(np.array(label_list),np.array(prediction_list))
+                    # print 'cumulative AUC', cumulative_AUC
                     print 'inner_product', inner_product.T
                     print 'prediction ', prediction.reshape(
                         [batch_size]).astype(int)
