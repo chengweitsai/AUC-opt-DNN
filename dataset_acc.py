@@ -25,31 +25,34 @@ FLAGS = flags.FLAGS
 ###################################################
 
 def get_data():
-    data = load_svmlight_file('./data/'+FLAGS.dataset)
+    data = load_svmlight_file('./data/' + FLAGS.dataset)
     return data[0], data[1]
 
+
 print 'load data'
-X,y = get_data()
+X, y = get_data()
 print 'todense'
 X = X.todense()
 data_num, feat_num = np.shape(X)
 # compute (+/-) ratio of dataset:
-data_ratio=0
+data_ratio = 0
 for i in range(data_num):
-    if y[i]==1:
-       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
+    if y[i] == 1:
+        data_ratio = (i * data_ratio + y[i]) / ((i + 1) * 1.0)
     else:
-       y[i]=0 #y=-1
-       data_ratio=(i*data_ratio+y[i])/((i+1)*1.0)
-print 'data_ratio=',data_ratio
+        y[i] = 0  # y=-1
+        data_ratio = (i * data_ratio + y[i]) / ((i + 1) * 1.0)
+print 'data_ratio=', data_ratio
 
 print 'relabel y=1/0 & reset (+/-) ratio:'
-X_new=np.array([]).reshape(-1, X.shape[1])
-y_new=np.array([])
-X_pos = X[y==1].reshape(-1, X.shape[1])
-X_neg = X[y==0].reshape(-1, X.shape[1])
+X_new = np.array([]).reshape(-1, X.shape[1])
+y_new = np.array([])
+X_pos = X[y == 1].reshape(-1, X.shape[1])
+X_neg = X[y == 0].reshape(-1, X.shape[1])
 
-C=FLAGS.request_ratio*(1-data_ratio)/(data_ratio*(1-FLAGS.request_ratio))
+
+C = FLAGS.request_ratio * (1 - data_ratio) / (data_ratio *
+                                              (1 - FLAGS.request_ratio))
 if FLAGS.request_ratio > data_ratio:
     X_new = np.r_[X_new, X_pos]
     y_new = np.r_[y_new, np.ones(X_pos.shape[0])]
@@ -65,58 +68,61 @@ else:
 
 print 'X_new.shape', X_new.shape
 print 'y_new.shape', y_new.shape
-new_data_num,feat_num = np.shape(X_new)
+new_data_num, feat_num = np.shape(X_new)
 # mean 0
-X_new_mean = np.mean(X_new,axis=0)
+X_new_mean = np.mean(X_new, axis=0)
 X_new = X_new - np.stack([X_new_mean for _ in range(new_data_num)])
+
 # norm 1
 for i in range(new_data_num):
-    X_new[i,:]=X_new[i,:]/np.linalg.norm(X_new[i,:])
-p=np.mean(y_new)
+    X_new[i, :] = X_new[i, :] / np.linalg.norm(X_new[i, :])
+p = np.mean(y_new)
 X_train, X_test, y_train, y_test = train_test_split(X_new, y_new, test_size=0.2, random_state=42)
-print 'X_train shape',X_train.shape
-print 'X_test shape',X_test.shape
+print 'X_train shape', X_train.shape
+print 'X_test shape', X_test.shape
 # shuffle training set:
 new_idx = np.random.permutation(np.shape(y_train)[0])
 X_train = X_train[new_idx]
-y_train =  y_train[new_idx]
+y_train = y_train[new_idx]
 train_num = X_train.shape[0]
 test_num = X_test.shape[0]
+
 
 def train_and_evaluate():
     """Helper to run the model with different training modes."""
 
-    # solving logistic regression 
+    # solving logistic regression
     model = LogisticRegression()
     model.fit(X_train, y_train)
 
     # make predictions
     test_prediction = model.predict(X_test)
-    acc = 1.0 * np.sum(y_test==test_prediction) / y_test.size
+    acc = 1.0 * np.sum(y_test == test_prediction) / y_test.size
 
     # Compute final evaluation on test data
-    print "y_test",y_test.shape
-    print "test_prediction",test_prediction.shape
-    cumulative_auc = metrics.roc_auc_score(y_test , test_prediction)
+    print "y_test", y_test.shape
+    print "test_prediction", test_prediction.shape
+    cumulative_auc = metrics.roc_auc_score(y_test, test_prediction)
     return acc, cumulative_auc
+
 
 if not FLAGS.dataset:
     raise ValueError("Must set --dataset for experiments")
 if not FLAGS.output_file:
     raise ValueError("Must set --output_file for experiments")
-fout =open('./output/'+FLAGS.output_file,'a')
-fout.write('dataset: '+FLAGS.dataset)
-fout.write('\noutput_file: '+FLAGS.output_file)
-fout.write('\n(+/-) ratio: '+str(FLAGS.request_ratio)+':'+str(1-FLAGS.request_ratio))
+fout = open('./output/' + FLAGS.output_file, 'a')
+fout.write('dataset: ' + FLAGS.dataset)
+fout.write('\noutput_file: ' + FLAGS.output_file)
+fout.write('\n(+/-) ratio: ' + str(FLAGS.request_ratio) + ':' + str(1 - FLAGS.request_ratio))
 fout.close()
 print 'dataset:', FLAGS.dataset
 print 'output_file:', FLAGS.output_file
-print '(+/-) ratio:', FLAGS.request_ratio,' : ',1-FLAGS.request_ratio
+print '(+/-) ratio:', FLAGS.request_ratio, ' : ', 1 - FLAGS.request_ratio
 print '\nacc optimization training'
-acc_ave,auc_ave = train_and_evaluate()
-fopen =open('./logistic/'+FLAGS.output_file,'a')
-fopen.write('testing data ACC: '+str(acc_ave)+'\n')
-fopen.write('testing data AUC: '+str(auc_ave)+'\n')
+acc_ave, auc_ave = train_and_evaluate()
+fopen = open('./logistic/' + FLAGS.output_file, 'a')
+fopen.write('testing data ACC: ' + str(acc_ave) + '\n')
+fopen.write('testing data AUC: ' + str(auc_ave) + '\n')
 fopen.close()
-print 'testing data ACC: '+str(acc_ave)
-print 'testing data AUC: '+str(auc_ave)
+print 'testing data ACC: ' + str(acc_ave)
+print 'testing data AUC: ' + str(auc_ave)

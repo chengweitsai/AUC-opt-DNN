@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from mpl_toolkits.axes_grid1 import ImageGrid
 
+
 # Model construction utilities below adapted from
 # https://www.tensorflow.org/versions/r0.8/tutorials/mnist/pros/index.html#deep-mnist-for-experts
 def weight_variable(shape):
@@ -17,12 +18,14 @@ def bias_variable(shape):
 def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
+
 def conv2d_stride(x, W, i):
     return tf.nn.conv2d(x, W, strides=[1, i, i, 1], padding='SAME')
 
+
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
-                        strides=[1, 2, 2, 1], padding='SAME')
+                          strides=[1, 2, 2, 1], padding='SAME')
 
 
 def shuffle_aligned_list(data):
@@ -34,7 +37,7 @@ def shuffle_aligned_list(data):
 
 def batch_generator(data, batch_size, shuffle=True):
     """Generate batches of data.
-    
+
     Given a list of array-like objects, generate batches of a given
     size by yielding a list of array-like objects corresponding to the
     same slice of each input.
@@ -75,7 +78,7 @@ def plot_embedding(X, y, d, title=None):
     X = (X - x_min) / (x_max - x_min)
 
     # Plot colors numbers
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(10, 10))
     ax = plt.subplot(111)
     for i in range(X.shape[0]):
         # plot colored number
